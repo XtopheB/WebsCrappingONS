@@ -1,0 +1,81 @@
+---
+title: "WebScrap the ONS"
+author: "Pinar Ucar"
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+output:
+  html_document:
+    code_folding: show 
+    highlight: tango
+    number_sections: yes
+    theme: lumen
+  pdf_document: default
+  word_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set( message = FALSE, warning = FALSE, results =FALSE, echo = TRUE) 
+
+```
+
+
+We have to scrap some data from the [ONS website](https://developer.beta.ons.gov.uk/). We will use some of the advise from [this website](https://www.programmableweb.com/news/how-to-access-any-restful-api-using-r-language/how-to/2017/07/21). 
+
+ *Packages* 
+
+```{r}
+# install.packages("httr")
+# install.packages("jsonlite")
+
+library(tidyverse)
+library(rvest)
+library("httr")
+#library(RSelenium)
+#library(XML)
+library("jsonlite")
+```
+
+
+- - - 
+
+# Getting the data
+
+
+```{r GETquery}
+#API URL:
+url <- "https://api.beta.ons.gov.uk/v1"
+
+# Target (long) sentence :
+target <- "/datasets/cpih01/editions/time-series/versions/6/observations?time=*&aggregate=cpih1dim1A0&geography=K02000001"
+
+
+# Endpoints (known from https://developer.beta.ons.gov.uk/dataset/)
+targetdatasets <- "/datasets"
+
+#targetsimple <- "/filters/d9645c21-0baa-4a58-834e-feb1919b14bb?submitted=true"
+
+# constructing the query sentence
+call_sentence <- paste0(url , targetdatasets)
+
+call_sentence
+
+# Scrapping the data !
+get_test <- GET(call_sentence) 
+
+```
+
+
+
+#  Converting the raw data to a working data file
+
+```{r dataframe, results =  TRUE}
+# Transform the object to retrieve the information
+data_text <- content(get_test, "text")
+# Format the information to JSON form 
+data_json<-  fromJSON(data_text, flatten = TRUE)
+
+data_df <- as.data.frame(data_json)
+head(data_df, 2)
+
+```
+
+
