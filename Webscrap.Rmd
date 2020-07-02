@@ -18,7 +18,7 @@ knitr::opts_chunk$set( message = FALSE, warning = FALSE, results =FALSE, echo = 
 ```
 
 
-We have to scrap some data from the [ONS website](https://developer.beta.ons.gov.uk/). We will use some of the advise from [this website](https://www.programmableweb.com/news/how-to-access-any-restful-api-using-r-language/how-to/2017/07/21). 
+We have to scrap some data from the [ONS website](https://developer.beta.ons.gov.uk/). We will use some of the advise from [this website](https://www.programmableweb.com/news/how-to-access-any-restful-api-using-r-language/how-to/2017/07/21) and follow the steps from there. 
 
  *Packages* 
 
@@ -34,7 +34,6 @@ library("httr")
 library("jsonlite")
 ```
 
-
 - - - 
 
 # Getting the data
@@ -44,20 +43,22 @@ library("jsonlite")
 #API URL:
 url <- "https://api.beta.ons.gov.uk/v1"
 
-# Target (long) sentence :
+# Endpoints (known from https://developer.beta.ons.gov.uk/dataset/)
+# Target (long) sentence (we use the example fro the ONS website)
+
 target <- "/datasets/cpih01/editions/time-series/versions/6/observations?time=*&aggregate=cpih1dim1A0&geography=K02000001"
 
-
-# Endpoints (known from https://developer.beta.ons.gov.uk/dataset/)
+# with this endpoint we get the whole datasets list
 targetdatasets <- "/datasets"
 
+# Other attempts (failures) 
 #targetsimple <- "/filters/d9645c21-0baa-4a58-834e-feb1919b14bb?submitted=true"
+#targetpopulation <- "/datasets/mid-year-pop-est/editions/mid-2018-april-2019-geography/versions/1/observations"
 
 # constructing the query sentence
-call_sentence <- paste0(url , targetdatasets)
+call_sentence <- paste0(url , target)
 
 call_sentence
-
 # Scrapping the data !
 get_test <- GET(call_sentence) 
 
@@ -68,14 +69,56 @@ get_test <- GET(call_sentence)
 #  Converting the raw data to a working data file
 
 ```{r dataframe, results =  TRUE}
-# Transform the object to retrieve the information
+# Transform the object to retrieve the information we need 
 data_text <- content(get_test, "text")
+
 # Format the information to JSON form 
 data_json<-  fromJSON(data_text, flatten = TRUE)
 
-data_df <- as.data.frame(data_json)
-head(data_df, 2)
+# Convert to a data.frame
+data_df.cpi <- as.data.frame(data_json)
+
+#nb of months
+nrow(data_df.cpi)
+```
+
+
+
+# Data Analysis
+
+```{r}
+library("lubridate") # Useful when working with dates 
+
+mydf <- data_df.cpi %>%
+  select(observations.observation, observations.dimensions.time.label
+          ) %>%
+  mutate(
+    cpi = as.numeric(observations.observation), 
+    # The character varibale  "observations.dimensions.time.labe"l is "month-year"
+    # The lubridate package cannot transform that but can do with "day-month-year"
+    # So we add a fake day...
+    trick = paste("01-", observations.dimensions.time.label),
+    time = dmy(trick) 
+  ) 
 
 ```
+
+#  Graphics
+
+```{r}
+library(ggplot2)
+
+ggplot(mydf) +
+ aes(x = time, y = cpi) +
+ geom_line(size = 1L, colour = "#0c4c8a") +
+  labs(title =" my plot", 
+       subtitle = "data from ONS",
+       x = "Time (months)", 
+       y = "CPI (base 100 in 2015)") +
+ theme_minimal()
+
+```
+
+
 
 
